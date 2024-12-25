@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2-Player Cooking Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const dividerX = canvas.width / 2;
+        const dividerWidth = 100;
+        const playerWidth = 40;
+        const playerHeight = 40;
+        const playerSpeed = 5;
+
+        const player1 = { x: dividerX / 2 - playerWidth / 2, y: canvas.height / 2 };
+        const player2 = { x: dividerX + dividerX / 2 - playerWidth / 2, y: canvas.height / 2 };
+
+        function drawDivider() {
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(dividerX - dividerWidth / 2, 0, dividerWidth, canvas.height);
+        }
+
+        function drawPlayer(player, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(player.x, player.y, playerWidth, playerHeight);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawDivider();
+            drawPlayer(player1, 'blue');
+            drawPlayer(player2, 'red');
+        }
+
+        function gameLoop() {
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        const keys = {};
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        function handleMovement() {
+            // Player 1 movement on left side using letters
+            if (keys['w'] && player1.y > 0) player1.y -= playerSpeed; // Up
+            if (keys['s'] && player1.y < canvas.height - playerHeight) player1.y += playerSpeed; // Down
+            if (keys['a'] && player1.x > 0) player1.x -= playerSpeed; // Left
+            if (keys['d'] && player1.x < dividerX - playerWidth) player1.x += playerSpeed; // Right
+
+            // Player 2 movement on right side using keypad (numpad keys)
+            if (keys['ArrowUp'] && player2.y > 0) player2.y -= playerSpeed; // Up
+            if (keys['ArrowDown'] && player2.y < canvas.height - playerHeight) player2.y += playerSpeed; // Down
+            if (keys['ArrowLeft'] && player2.x > dividerX) player2.x -= playerSpeed; // Left
+            if (keys['ArrowRight'] && player2.x < canvas.width - playerWidth) player2.x += playerSpeed; // Right
+        }
+
+        function gameTick() {
+            handleMovement();
+        }
+
+        setInterval(gameTick, 16);
+        gameLoop();
+    </script>
+</body>
+</html>
