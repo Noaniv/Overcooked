@@ -24,6 +24,7 @@
 
         const dividerX = canvas.width / 2;
         const dividerWidth = 100;
+        const sideBarWidth = 60;
         const playerWidth = 40;
         const playerHeight = 40;
         const playerSpeed = 5;
@@ -31,9 +32,44 @@
         const player1 = { x: dividerX / 2 - playerWidth / 2, y: canvas.height / 2 };
         const player2 = { x: dividerX + dividerX / 2 - playerWidth / 2, y: canvas.height / 2 };
 
+        let circles = [];  
+        const radius = 15;
+        const colors = ['pink', 'blue', 'green', 'yellow', 'purple', 'orange'];
+        const numberOfCircles = colors.length;
+        const spacing = (canvas.height - (numberOfCircles * radius * 2)) / (numberOfCircles + 1);
+
+        colors.forEach((color, index) => {
+            const yPos = spacing + index * (radius * 2 + spacing);
+            circles.push({ color, y: yPos });
+        });
+
         function drawDivider() {
             ctx.fillStyle = 'gray';
             ctx.fillRect(dividerX - dividerWidth / 2, 0, dividerWidth, canvas.height);
+        }
+
+        function drawSidebar() {
+            ctx.fillStyle = 'red';  
+            ctx.fillRect(canvas.width - 70, 0, 70, canvas.height);  
+
+            circles.forEach((circle, index) => {
+                ctx.fillStyle = circle.color;
+                ctx.beginPath();
+                ctx.arc(
+                    canvas.width - 70 + (70 / 2),  
+                    circle.y,  
+                    radius,  
+                    0,  
+                    Math.PI * 2  
+                );
+                ctx.fill();
+            });
+        }
+
+        // Draw the rectangle at the top of the screen for player 2
+        function playerCuttingBoard() {
+            ctx.fillStyle = 'black';  // You can change the color if needed
+            ctx.fillRect(dividerX + 250, 0, canvas.width - 200, 150);  // Rectangle above player 2
         }
 
         function drawPlayer(player, color) {
@@ -44,6 +80,8 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawDivider();
+            drawSidebar();
+            playerCuttingBoard();  // Call the function to draw the rectangle
             drawPlayer(player1, 'blue');
             drawPlayer(player2, 'red');
         }
@@ -74,11 +112,23 @@
             if (keys['ArrowUp'] && player2.y > 0) player2.y -= playerSpeed; // Up
             if (keys['ArrowDown'] && player2.y < canvas.height - playerHeight) player2.y += playerSpeed; // Down
             if (keys['ArrowLeft'] && player2.x > dividerX) player2.x -= playerSpeed; // Left
-            if (keys['ArrowRight'] && player2.x < canvas.width - playerWidth) player2.x += playerSpeed; // Right
+            if (keys['ArrowRight'] && player2.x < canvas.width - sideBarWidth - playerWidth) player2.x += playerSpeed; // Right
+        }
+
+        function updateCircles() {
+            circles.forEach((circle, index) => {
+                circle.y += 1;  // Move each circle downwards slowly
+
+                // Reset circle position when it goes off screen
+                if (circle.y > canvas.height + radius) {
+                    circle.y = -radius;  // Position it above the canvas
+                }
+            });
         }
 
         function gameTick() {
             handleMovement();
+            updateCircles();
         }
 
         setInterval(gameTick, 16);
