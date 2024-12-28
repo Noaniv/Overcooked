@@ -77,15 +77,94 @@
             ctx.fillRect(player.x, player.y, playerWidth, playerHeight);
         }
 
+
+        function drawOrdersBoard() {
+            const boxWidth = 300;
+            const boxHeight = 200;
+            const imageSize = 80; // Size of the images
+            const gap = 20; // Space between images
+        
+            // Calculate the top box position
+            const boxX = canvas.width / 2 - boxWidth / 2;
+            const boxY = 0; // Box starts at the top of the canvas
+        
+            // Draw the main box
+            ctx.fillStyle = 'pink'; // Color of the main box
+            ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+        
+            // Add the title "Orders" inside the box above the images
+            ctx.fillStyle = 'black'; // Text color
+            ctx.font = '24px Arial'; // Font size and style
+            ctx.textAlign = 'center'; // Center the text
+            ctx.fillText('Orders', canvas.width / 2, boxY + 30); // Position text inside the box
+        
+            // Define image file paths
+            const imagePaths = [
+                './menu_items/bananas.png',
+                './menu_items/hamburger.png',
+                './menu_items/limes.png',
+                './menu_items/noodles.jpg',
+            ];
+        
+            // Load the images and draw them after they're all loaded
+            const images = [];
+            let imagesLoaded = 0;
+        
+            // Calculate positions for the images
+            const row1Y = boxY + (boxHeight / 2 - imageSize - gap / 2);
+            const row2Y = boxY + (boxHeight / 2 + gap / 2);
+            const col1X = boxX + (boxWidth / 2 - imageSize - gap / 2);
+            const col2X = boxX + (boxWidth / 2 + gap / 2);
+        
+            const positions = [
+                { x: col1X, y: row1Y }, // Top-left
+                { x: col2X, y: row1Y }, // Top-right
+                { x: col1X, y: row2Y }, // Bottom-left
+                { x: col2X, y: row2Y }, // Bottom-right
+            ];
+        
+            // Function to check if all images are loaded
+            function checkImagesLoaded() {
+                if (imagesLoaded === imagePaths.length) {
+                    images.forEach((img, index) => {
+                        const pos = positions[index];
+                        ctx.drawImage(img, pos.x, pos.y, imageSize, imageSize);
+                    });
+                }
+            }
+        
+            imagePaths.forEach((path, index) => {
+                const img = new Image();
+                img.src = path;
+        
+                img.onload = () => {
+                    images[index] = img;
+                    imagesLoaded++;
+                    checkImagesLoaded();
+                };
+        
+                img.onerror = () => {
+                    console.error(`Failed to load image: ${path}`);
+                };
+            });
+        
+            // Optional: Add outlines for visual clarity
+            ctx.strokeStyle = 'black';
+            ctx.strokeRect(boxX, boxY, boxWidth, boxHeight); // Outline for the main box
+        }
+        
+
+        
+
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawDivider();
             drawSidebar();
-            playerCuttingBoard();  // Call the function to draw the rectangle
+            playerCuttingBoard(); // Call the function to draw the rectangle
+            drawOrdersBoard(); // Call the new function here
             drawPlayer(player1, 'blue');
             drawPlayer(player2, 'red');
         }
-
         function gameLoop() {
             draw();
             requestAnimationFrame(gameLoop);
@@ -94,26 +173,26 @@
         const keys = {};
 
         window.addEventListener('keydown', (e) => {
-            keys[e.key] = true;
+            keys[e.key.toLowerCase()] = true;
         });
-
+        
         window.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
+            keys[e.key.toLowerCase()] = false;
         });
-
+        
         function handleMovement() {
             // Player 1 movement on left side using letters
             if (keys['w'] && player1.y > 0) player1.y -= playerSpeed; // Up
             if (keys['s'] && player1.y < canvas.height - playerHeight) player1.y += playerSpeed; // Down
             if (keys['a'] && player1.x > 0) player1.x -= playerSpeed; // Left
             if (keys['d'] && player1.x < dividerX - playerWidth) player1.x += playerSpeed; // Right
-
-            // Player 2 movement on right side using keypad (numpad keys)
-            if (keys['ArrowUp'] && player2.y > 0) player2.y -= playerSpeed; // Up
-            if (keys['ArrowDown'] && player2.y < canvas.height - playerHeight) player2.y += playerSpeed; // Down
-            if (keys['ArrowLeft'] && player2.x > dividerX) player2.x -= playerSpeed; // Left
-            if (keys['ArrowRight'] && player2.x < canvas.width - sideBarWidth - playerWidth) player2.x += playerSpeed; // Right
-        }
+        
+            // Player 2 movement on right side using arrow keys
+            if (keys['arrowup'] && player2.y > 0) player2.y -= playerSpeed; // Up
+            if (keys['arrowdown'] && player2.y < canvas.height - playerHeight) player2.y += playerSpeed; // Down
+            if (keys['arrowleft'] && player2.x > dividerX) player2.x -= playerSpeed; // Left
+            if (keys['arrowright'] && player2.x < canvas.width - sideBarWidth - playerWidth) player2.x += playerSpeed; // Right
+        }        
 
         function updateCircles() {
             circles.forEach((circle, index) => {
