@@ -32,15 +32,23 @@
             recipes: { x: dividerX- 75, y: canvas.height - 200, width: dividerWidth + 175, height: 200 },
             sidebar: { x: canvas.width - 100, y: 0, width: 150, height: canvas.height },
             divider: { x: dividerX, y: 0, width: dividerWidth, height: canvas.height },
-            // New stations
             cookingStation: { x: 0, y: 0, width: 200, height: 200, color: '#8B4513' },
             cuttingBoard: { x: canvas.width - 400, y: 0, width: 200, height: 200, color: '#8B4513' },
             leftTrash: { x: 50, y: canvas.height - 100, width: 80, height: 80 },
             rightTrash: { x: canvas.width - 130, y: canvas.height - 100, width: 80, height: 80 }
         };
 
-        // Players (Chef and Sous Chef)
-        const chef = { x: 50, y: canvas.height / 4, width: 50, height: 50, color: 'green', speed: 5 };
+        // Players with held ingredients
+        const chef = { 
+            x: 50, 
+            y: canvas.height / 4, 
+            width: 50, 
+            height: 50, 
+            color: 'green', 
+            speed: 5,
+            heldIngredient: null 
+        };
+        
         const sousChef = { 
             x: dividerX + dividerWidth + 50, 
             y: canvas.height / 4, 
@@ -49,6 +57,13 @@
             color: 'yellow', 
             speed: 5,
             heldIngredient: null
+        };
+
+        // Arrays to store ingredients at different stations
+        const placedIngredients = {
+            divider: [],
+            cookingStation: [],
+            cuttingBoard: []
         };
 
         // Movement keys
@@ -61,40 +76,121 @@
             a: false,
             s: false,
             d: false,
-            ' ': false
+            ' ': false,  // Space for sous chef
+            'e': false   // E for chef
         };
 
-        // Array to store placed ingredients on the divider
-        const placedIngredients = [];
+        function isNearZone(player, zone, radius = 80) {
+            const playerCenterX = player.x + player.width/2;
+            const playerCenterY = player.y + player.height/2;
+            const zoneCenterX = zone.x + zone.width/2;
+            const zoneCenterY = zone.y + zone.height/2;
+            
+            return Math.sqrt(
+                Math.pow(playerCenterX - zoneCenterX, 2) +
+                Math.pow(playerCenterY - zoneCenterY, 2)
+            ) < radius;
+        }
+
+        function handleChefInteraction() {
+            if (!chef.heldIngredient) {
+                // Pick up from divider
+                if (Math.abs((chef.x + chef.width) - zones.divider.x) < 50) {
+                    const nearbyIngredient = placedIngredients.divider.find(ing => 
+                        Math.abs(ing.y - (chef.y + chef.height/2)) < 50
+                    );
+                    if (nearbyIngredient) {
+                        chef.heldIngredient = {...nearbyIngredient};
+                        placedIngredients.divider = placedIngredients.divider.filter(ing => ing !== nearbyIngredient);
+                    }
+                }
+                // Pick up from cooking station
+                else if (isNearZone(chef, zones.cookingStation)) {
+                    const nearbyIngredient = placedIngredients.cookingStation.find(ing => 
+                        Math.abs(ing.y - (chef.y + chef.height/2)) < 50
+                    );
+                    if (nearbyIngredient) {
+                        chef.heldIngredient = {...nearbyIngredient};
+                        placedIngredients.cookingStation = placedIngredients.cookingStation.filter(ing => ing !== nearbyIngredient);
+                    }
+                }
+            } else {
+                // Drop off at cooking station
+                if (isNearZone(chef, zones.cookingStation)) {
+                    placedIngredients.cookingStation.push({
+                        ...chef.heldIngredient,
+                        x: zones.cookingStation.x + zones.cookingStation.width/2,
+                        y: chef.y + chef.height/2
+                    });
+                    chef.heldIngredient = null;
+                }
+                // Drop in trash
+                else if (isNearZone(chef, zones.leftTrash) || isNearZone(chef, zones.rightTrash)) {
+                    chef.heldIngredient = null;
+                }
+            }
+        }
+
+        function handleSousChefInteraction() {
+            if (!sousChef.heldIngredient) {
+                // Pick up from sidebar
+                const nearbyIngredient = ingredients.find(ingredient => {
+                    const distance = Math.sqrt(
+                        Math.pow(sousChef.x + sousChef.width/2 - ingredient.x, 2) +
+                        Math.pow(sousChef.y + sousChef.height/2 - ingredient.y, 2)
+                    );
+                    return distance < 50;
+                });
+                
+                if (nearbyIngredient) {
+                    sousChef.heldIngredient = {...nearbyIngredient};
+                }
+                
+                // Pick up from cutting board
+                else if (isNearZone(sousChef, zones.cuttingBoard)) {
+                    const nearbyBoardIngredient = placedIngredients.cuttingBoard.find(ing =>
+                        Math.abs(ing.y - (sousChef.y + sousChef.height/2)) < 50
+                    );
+                    
+                    if (nearbyBoardIngredient) {
+                        sousChef.heldIngredient = {...nearbyBoardIngredient};
+                        placedIngredients.cuttingBoard = placedIngredients.cuttingBoard.filter(ing => ing !== nearbyBoardIngredient);
+                    }
+                }
+            } else {
+                // Drop on divider
+                if (Math.abs((sousChef.x + sousChef.width/2) - (zones.divider.x + zones.divider.width)) < 50) {
+                    placedIngredients.divider.push({
+                        ...sousChef.heldIngredient,
+                        x: zones.divider.x + zones.divider.width/2,
+                        y: sousChef.y + sousChef.height/2
+                    });
+                    sousChef.heldIngredient = null;
+                }
+                // Drop on cutting board
+                else if (isNearZone(sousChef, zones.cuttingBoard)) {
+                    placedIngredients.cuttingBoard.push({
+                        ...sousChef.heldIngredient,
+                        x: zones.cuttingBoard.x + zones.cuttingBoard.width/2,
+                        y: sousChef.y + sousChef.height/2
+                    });
+                    sousChef.heldIngredient = null;
+                }
+                // Drop in trash
+                else if (isNearZone(sousChef, zones.leftTrash) || isNearZone(sousChef, zones.rightTrash)) {
+                    sousChef.heldIngredient = null;
+                }
+            }
+        }
 
         // Event listeners for key presses
         window.addEventListener('keydown', (e) => {
             if (e.key in keys) {
                 keys[e.key] = true;
-                
                 if (e.key === ' ') {
-                    if (sousChef.heldIngredient === null) {
-                        const nearbyIngredient = ingredients.find(ingredient => {
-                            const distance = Math.sqrt(
-                                Math.pow(sousChef.x + sousChef.width/2 - ingredient.x, 2) +
-                                Math.pow(sousChef.y + sousChef.height/2 - ingredient.y, 2)
-                            );
-                            return distance < 50;
-                        });
-                        
-                        if (nearbyIngredient) {
-                            sousChef.heldIngredient = {...nearbyIngredient};
-                        }
-                    } else {
-                        if (Math.abs((sousChef.x + sousChef.width/2) - (zones.divider.x + zones.divider.width)) < 50) {
-                            placedIngredients.push({
-                                ...sousChef.heldIngredient,
-                                x: zones.divider.x + zones.divider.width/2,
-                                y: sousChef.y
-                            });
-                            sousChef.heldIngredient = null;
-                        }
-                    }
+                    handleSousChefInteraction();
+                } else if (e.key === 'e') {
+                    handleChefInteraction();
                 }
             }
         });
@@ -125,25 +221,35 @@
                     Math.PI * 2
                 );
                 ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(player.heldIngredient.name, player.x + player.width/2, player.y - 30);
             }
         }
 
-        // Draw trash can function
+        function drawIngredients(ingredients, x, y) {
+            ingredients.forEach(ingredient => {
+                ctx.fillStyle = ingredient.color;
+                ctx.beginPath();
+                ctx.arc(ingredient.x, ingredient.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(ingredient.name, ingredient.x, ingredient.y + 40);
+            });
+        }
+
         function drawTrashCan(x, y, width, height) {
-            // Draw trash can body
             ctx.fillStyle = '#666666';
             ctx.fillRect(x, y, width, height);
-            
-            // Draw lid
             ctx.fillStyle = '#444444';
             ctx.fillRect(x - 5, y, width + 10, 10);
-            
-            // Draw handle
             ctx.fillStyle = '#888888';
             ctx.fillRect(x + width/2 - 5, y - 5, 10, 5);
         }
 
-        // Draw stations
         function drawStations() {
             // Draw cooking station
             ctx.fillStyle = zones.cookingStation.color;
@@ -155,6 +261,7 @@
             ctx.fillText('Cooking Station', 
                         zones.cookingStation.x + zones.cookingStation.width/2, 
                         zones.cookingStation.y + 30);
+            drawIngredients(placedIngredients.cookingStation);
 
             // Draw cutting board
             ctx.fillStyle = zones.cuttingBoard.color;
@@ -164,6 +271,7 @@
             ctx.fillText('Cutting Board', 
                         zones.cuttingBoard.x + zones.cuttingBoard.width/2, 
                         zones.cuttingBoard.y + 30);
+            drawIngredients(placedIngredients.cuttingBoard);
 
             // Draw trash cans
             drawTrashCan(zones.leftTrash.x, zones.leftTrash.y, 
@@ -184,17 +292,7 @@
         function drawDivider() {
             ctx.fillStyle = 'gray';
             ctx.fillRect(zones.divider.x, zones.divider.y, zones.divider.width, zones.divider.height);
-            
-            placedIngredients.forEach(ingredient => {
-                ctx.fillStyle = ingredient.color;
-                ctx.beginPath();
-                ctx.arc(ingredient.x, ingredient.y, 20, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'black';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(ingredient.name, ingredient.x, ingredient.y + 40);
-            });
+            drawIngredients(placedIngredients.divider);
         }
 
         const ingredients = [
@@ -207,17 +305,7 @@
         function drawSidebar() {
             ctx.fillStyle = 'pink';
             ctx.fillRect(zones.sidebar.x, zones.sidebar.y, zones.sidebar.width, zones.sidebar.height);
-
-            ingredients.forEach((ingredient) => {
-                ctx.fillStyle = ingredient.color;
-                ctx.beginPath();
-                ctx.arc(ingredient.x, ingredient.y, 20, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'black';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(ingredient.name, ingredient.x, ingredient.y + 40);
-            });
+            drawIngredients(ingredients);
         }
 
         function draw() {
@@ -229,7 +317,8 @@
             drawSidebar();
             drawStations();
 
-            movePlayer(chef, 'w', 's', 'a', 'd', { minX: 0, maxX: dividerX - chef.width });
+            // Updated the chef's maxX boundary to allow reaching the divider
+            movePlayer(chef, 'w', 's', 'a', 'd', { minX: 0, maxX: zones.divider.x + 10 });
             movePlayer(sousChef, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', { minX: dividerX + dividerWidth, maxX: canvas.width });
 
             drawPlayer(chef);
