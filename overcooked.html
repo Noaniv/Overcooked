@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2-Player Cooking Game</title>
+    <title>Cooking Game Layout</title>
     <style>
         body {
             margin: 0;
@@ -11,6 +11,7 @@
         }
         canvas {
             display: block;
+            background-color: #f9f4da;
         }
     </style>
 </head>
@@ -22,196 +23,220 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const dividerX = canvas.width / 2;
-        const dividerWidth = 100;
-        const sideBarWidth = 60;
-        const playerWidth = 40;
-        const playerHeight = 40;
-        const playerSpeed = 5;
+        const dividerWidth = 150;
+        const dividerX = (canvas.width - dividerWidth) / 2;
 
-        const player1 = { x: dividerX / 2 - playerWidth / 2, y: canvas.height / 2 };
-        const player2 = { x: dividerX + dividerX / 2 - playerWidth / 2, y: canvas.height / 2 };
+        // Game zones
+        const zones = {
+            orders: { x: dividerX - 75, y: 0, width: dividerWidth + 150, height: 200},
+            recipes: { x: dividerX- 75, y: canvas.height - 200, width: dividerWidth + 175, height: 200 },
+            sidebar: { x: canvas.width - 100, y: 0, width: 150, height: canvas.height },
+            divider: { x: dividerX, y: 0, width: dividerWidth, height: canvas.height },
+            // New stations
+            cookingStation: { x: 0, y: 0, width: 200, height: 200, color: '#8B4513' },
+            cuttingBoard: { x: canvas.width - 400, y: 0, width: 200, height: 200, color: '#8B4513' },
+            leftTrash: { x: 50, y: canvas.height - 100, width: 80, height: 80 },
+            rightTrash: { x: canvas.width - 130, y: canvas.height - 100, width: 80, height: 80 }
+        };
 
-        let circles = [];  
-        const radius = 15;
-        const colors = ['pink', 'blue', 'green', 'yellow', 'purple', 'orange'];
-        const numberOfCircles = colors.length;
-        const spacing = (canvas.height - (numberOfCircles * radius * 2)) / (numberOfCircles + 1);
+        // Players (Chef and Sous Chef)
+        const chef = { x: 50, y: canvas.height / 4, width: 50, height: 50, color: 'green', speed: 5 };
+        const sousChef = { 
+            x: dividerX + dividerWidth + 50, 
+            y: canvas.height / 4, 
+            width: 50, 
+            height: 50, 
+            color: 'yellow', 
+            speed: 5,
+            heldIngredient: null
+        };
 
-        colors.forEach((color, index) => {
-            const yPos = spacing + index * (radius * 2 + spacing);
-            circles.push({ color, y: yPos });
+        // Movement keys
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false,
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+            ' ': false
+        };
+
+        // Array to store placed ingredients on the divider
+        const placedIngredients = [];
+
+        // Event listeners for key presses
+        window.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+                
+                if (e.key === ' ') {
+                    if (sousChef.heldIngredient === null) {
+                        const nearbyIngredient = ingredients.find(ingredient => {
+                            const distance = Math.sqrt(
+                                Math.pow(sousChef.x + sousChef.width/2 - ingredient.x, 2) +
+                                Math.pow(sousChef.y + sousChef.height/2 - ingredient.y, 2)
+                            );
+                            return distance < 50;
+                        });
+                        
+                        if (nearbyIngredient) {
+                            sousChef.heldIngredient = {...nearbyIngredient};
+                        }
+                    } else {
+                        if (Math.abs((sousChef.x + sousChef.width/2) - (zones.divider.x + zones.divider.width)) < 50) {
+                            placedIngredients.push({
+                                ...sousChef.heldIngredient,
+                                x: zones.divider.x + zones.divider.width/2,
+                                y: sousChef.y
+                            });
+                            sousChef.heldIngredient = null;
+                        }
+                    }
+                }
+            }
         });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key in keys) keys[e.key] = false;
+        });
+
+        function movePlayer(player, up, down, left, right, boundary) {
+            if (keys[up] && player.y > 0) player.y -= player.speed;
+            if (keys[down] && player.y + player.height < canvas.height) player.y += player.speed;
+            if (keys[left] && player.x > boundary.minX) player.x -= player.speed;
+            if (keys[right] && player.x + player.width < boundary.maxX) player.x += player.speed;
+        }
+
+        function drawPlayer(player) {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            if (player.heldIngredient) {
+                ctx.fillStyle = player.heldIngredient.color;
+                ctx.beginPath();
+                ctx.arc(
+                    player.x + player.width/2,
+                    player.y - 20,
+                    15,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+
+        // Draw trash can function
+        function drawTrashCan(x, y, width, height) {
+            // Draw trash can body
+            ctx.fillStyle = '#666666';
+            ctx.fillRect(x, y, width, height);
+            
+            // Draw lid
+            ctx.fillStyle = '#444444';
+            ctx.fillRect(x - 5, y, width + 10, 10);
+            
+            // Draw handle
+            ctx.fillStyle = '#888888';
+            ctx.fillRect(x + width/2 - 5, y - 5, 10, 5);
+        }
+
+        // Draw stations
+        function drawStations() {
+            // Draw cooking station
+            ctx.fillStyle = zones.cookingStation.color;
+            ctx.fillRect(zones.cookingStation.x, zones.cookingStation.y, 
+                        zones.cookingStation.width, zones.cookingStation.height);
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Cooking Station', 
+                        zones.cookingStation.x + zones.cookingStation.width/2, 
+                        zones.cookingStation.y + 30);
+
+            // Draw cutting board
+            ctx.fillStyle = zones.cuttingBoard.color;
+            ctx.fillRect(zones.cuttingBoard.x, zones.cuttingBoard.y, 
+                        zones.cuttingBoard.width, zones.cuttingBoard.height);
+            ctx.fillStyle = 'white';
+            ctx.fillText('Cutting Board', 
+                        zones.cuttingBoard.x + zones.cuttingBoard.width/2, 
+                        zones.cuttingBoard.y + 30);
+
+            // Draw trash cans
+            drawTrashCan(zones.leftTrash.x, zones.leftTrash.y, 
+                        zones.leftTrash.width, zones.leftTrash.height);
+            drawTrashCan(zones.rightTrash.x, zones.rightTrash.y, 
+                        zones.rightTrash.width, zones.rightTrash.height);
+        }
+
+        function drawZone(zone, label, color = 'gray') {
+            ctx.fillStyle = color;
+            ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, zone.x + zone.width / 2, zone.y + 25);
+        }
 
         function drawDivider() {
             ctx.fillStyle = 'gray';
-            ctx.fillRect(dividerX - dividerWidth / 2, 0, dividerWidth, canvas.height);
+            ctx.fillRect(zones.divider.x, zones.divider.y, zones.divider.width, zones.divider.height);
+            
+            placedIngredients.forEach(ingredient => {
+                ctx.fillStyle = ingredient.color;
+                ctx.beginPath();
+                ctx.arc(ingredient.x, ingredient.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(ingredient.name, ingredient.x, ingredient.y + 40);
+            });
         }
+
+        const ingredients = [
+            { name: 'Carrot', color: 'orange', x: zones.sidebar.x + 60, y: 150 },
+            { name: 'Tomato', color: 'red', x: zones.sidebar.x + 60, y: 300 },
+            { name: 'Pasta', color: 'green', x: zones.sidebar.x + 60, y: 450 },
+            { name: 'Meat', color: 'brown', x: zones.sidebar.x + 60, y: 600 },
+        ];
 
         function drawSidebar() {
-            ctx.fillStyle = 'red';  
-            ctx.fillRect(canvas.width - 70, 0, 70, canvas.height);  
+            ctx.fillStyle = 'pink';
+            ctx.fillRect(zones.sidebar.x, zones.sidebar.y, zones.sidebar.width, zones.sidebar.height);
 
-            circles.forEach((circle, index) => {
-                ctx.fillStyle = circle.color;
+            ingredients.forEach((ingredient) => {
+                ctx.fillStyle = ingredient.color;
                 ctx.beginPath();
-                ctx.arc(
-                    canvas.width - 70 + (70 / 2),  
-                    circle.y,  
-                    radius,  
-                    0,  
-                    Math.PI * 2  
-                );
+                ctx.arc(ingredient.x, ingredient.y, 20, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(ingredient.name, ingredient.x, ingredient.y + 40);
             });
         }
-
-        // Draw the rectangle at the top of the screen for player 2
-        function playerCuttingBoard() {
-            ctx.fillStyle = 'black';  // You can change the color if needed
-            ctx.fillRect(dividerX + 250, 0, canvas.width - 200, 150);  // Rectangle above player 2
-        }
-
-        function drawPlayer(player, color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(player.x, player.y, playerWidth, playerHeight);
-        }
-
-
-        function drawOrdersBoard() {
-            const boxWidth = 300;
-            const boxHeight = 200;
-            const imageSize = 80; // Size of the images
-            const gap = 20; // Space between images
-        
-            // Calculate the top box position
-            const boxX = canvas.width / 2 - boxWidth / 2;
-            const boxY = 0; // Box starts at the top of the canvas
-        
-            // Draw the main box
-            ctx.fillStyle = 'pink'; // Color of the main box
-            ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-        
-            // Add the title "Orders" inside the box above the images
-            ctx.fillStyle = 'black'; // Text color
-            ctx.font = '24px Arial'; // Font size and style
-            ctx.textAlign = 'center'; // Center the text
-            ctx.fillText('Orders', canvas.width / 2, boxY + 30); // Position text inside the box
-        
-            // Define image file paths
-            const imagePaths = [
-                './menu_items/bananas.png',
-                './menu_items/hamburger.png',
-                './menu_items/limes.png',
-                './menu_items/noodles.jpg',
-            ];
-        
-            // Load the images and draw them after they're all loaded
-            const images = [];
-            let imagesLoaded = 0;
-        
-            // Calculate positions for the images
-            const row1Y = boxY + (boxHeight / 2 - imageSize - gap / 2);
-            const row2Y = boxY + (boxHeight / 2 + gap / 2);
-            const col1X = boxX + (boxWidth / 2 - imageSize - gap / 2);
-            const col2X = boxX + (boxWidth / 2 + gap / 2);
-        
-            const positions = [
-                { x: col1X, y: row1Y }, // Top-left
-                { x: col2X, y: row1Y }, // Top-right
-                { x: col1X, y: row2Y }, // Bottom-left
-                { x: col2X, y: row2Y }, // Bottom-right
-            ];
-        
-            // Function to check if all images are loaded
-            function checkImagesLoaded() {
-                if (imagesLoaded === imagePaths.length) {
-                    images.forEach((img, index) => {
-                        const pos = positions[index];
-                        ctx.drawImage(img, pos.x, pos.y, imageSize, imageSize);
-                    });
-                }
-            }
-        
-            imagePaths.forEach((path, index) => {
-                const img = new Image();
-                img.src = path;
-        
-                img.onload = () => {
-                    images[index] = img;
-                    imagesLoaded++;
-                    checkImagesLoaded();
-                };
-        
-                img.onerror = () => {
-                    console.error(`Failed to load image: ${path}`);
-                };
-            });
-        
-            // Optional: Add outlines for visual clarity
-            ctx.strokeStyle = 'black';
-            ctx.strokeRect(boxX, boxY, boxWidth, boxHeight); // Outline for the main box
-        }
-        
-
-        
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             drawDivider();
+            drawZone(zones.orders, 'Orders', '#ffd966');
+            drawZone(zones.recipes, 'Recipes', '#cfe2f3');
             drawSidebar();
-            playerCuttingBoard(); // Call the function to draw the rectangle
-            drawOrdersBoard(); // Call the new function here
-            drawPlayer(player1, 'blue');
-            drawPlayer(player2, 'red');
-        }
-        function gameLoop() {
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
+            drawStations();
 
-        const keys = {};
+            movePlayer(chef, 'w', 's', 'a', 'd', { minX: 0, maxX: dividerX - chef.width });
+            movePlayer(sousChef, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', { minX: dividerX + dividerWidth, maxX: canvas.width });
 
-        window.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
-        });
-        
-        window.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
-        });
-        
-        function handleMovement() {
-            // Player 1 movement on left side using letters
-            if (keys['w'] && player1.y > 0) player1.y -= playerSpeed; // Up
-            if (keys['s'] && player1.y < canvas.height - playerHeight) player1.y += playerSpeed; // Down
-            if (keys['a'] && player1.x > 0) player1.x -= playerSpeed; // Left
-            if (keys['d'] && player1.x < dividerX - playerWidth) player1.x += playerSpeed; // Right
-        
-            // Player 2 movement on right side using arrow keys
-            if (keys['arrowup'] && player2.y > 0) player2.y -= playerSpeed; // Up
-            if (keys['arrowdown'] && player2.y < canvas.height - playerHeight) player2.y += playerSpeed; // Down
-            if (keys['arrowleft'] && player2.x > dividerX) player2.x -= playerSpeed; // Left
-            if (keys['arrowright'] && player2.x < canvas.width - sideBarWidth - playerWidth) player2.x += playerSpeed; // Right
-        }        
-
-        function updateCircles() {
-            circles.forEach((circle, index) => {
-                circle.y += 1;  // Move each circle downwards slowly
-
-                // Reset circle position when it goes off screen
-                if (circle.y > canvas.height + radius) {
-                    circle.y = -radius;  // Position it above the canvas
-                }
-            });
+            drawPlayer(chef);
+            drawPlayer(sousChef);
         }
 
-        function gameTick() {
-            handleMovement();
-            updateCircles();
-        }
-
-        setInterval(gameTick, 16);
-        gameLoop();
+        setInterval(draw, 16);
     </script>
 </body>
 </html>
